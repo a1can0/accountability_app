@@ -151,6 +151,39 @@ input[type="text"]:focus {
     color: #718096;
 }
 
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+    margin-bottom: 15px;
+}
+
+.calendar-day {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: background-color 0.3s ease;
+}
+
+.day-gray {
+    background-color: #e2e8f0;
+}
+
+.day-green {
+    background-color: #48bb78;
+    color: white;
+}
+
+.day-red {
+    background-color: #e53e3e;
+    color: white;
+}
+
 .click-btn {
     width: 100%;
     background: linear-gradient(135deg, #48bb78, #38a169);
@@ -234,5 +267,11 @@ input[type="text"]:focus {
     
     .calendars-grid {
         grid-template-columns: 1fr;
+    }
+    
+    .calendar-day {
+        width: 25px;
+        height: 25px;
+        font-size: 0.7rem;
     }
 }
