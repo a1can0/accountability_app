@@ -1,9 +1,6 @@
 const express = require('express');
 const app = express();
-const port = process.env.PORT || 10000 
-
-const RENDER_API_KEY = process.env.RENDER_API_KEY;
-const RENDER_API_URL = 'https://api.render.com/v1'; // Replace with actual Render storage API endpoint
+const port = process.env.PORT || 10000;
 
 app.use(express.json());
 
@@ -15,42 +12,40 @@ app.use((req, res, next) => {
     next();
 });
 
-app.put('/backup/:token', async (req, res) => {
+// In-memory store (replace with a database in production)
+const dataStore = {};
+
+// Backup endpoint
+app.put('/backup/:token', (req, res) => {
     try {
-        const response = await fetch(`${RENDER_API_URL}/files/${req.params.token}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${RENDER_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(req.body)
-        });
-        if (response.ok) {
-            res.json(await response.json());
-        } else {
-            res.status(response.status).json({ error: 'Backup failed' });
+        const token = req.params.token;
+        if (!token || token.length < 64) {
+            return res.status(400).json({ error: 'Invalid token' });
         }
+        dataStore[token] = req.body; // Store encrypted data
+        res.json({ success: true });
     } catch (e) {
         res.status(500).json({ error: 'Backup failed' });
     }
 });
 
-app.get('/restore/:token', async (req, res) => {
+// Restore endpoint
+app.get('/restore/:token', (req, res) => {
     try {
-        const response = await fetch(`${RENDER_API_URL}/files/${req.params.token}`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${RENDER_API_KEY}` }
-        });
-        if (response.ok) {
-            res.json(await response.json());
-        } else {
-            res.status(response.status).json({ error: 'Restore failed' });
+        const token = req.params.token;
+        if (!token || token.length < 64) {
+            return res.status(400).json({ error: 'Invalid token' });
         }
+        const data = dataStore[token];
+        if (!data) {
+            return res.status(404).json({ error: 'No data found for this token' });
+        }
+        res.json(data);
     } catch (e) {
         res.status(500).json({ error: 'Restore failed' });
     }
 });
 
 app.listen(port, () => {
-  console.log(`app listening on port ${port}`)
-})
+    console.log(`App listening on port ${port}`);
+});
