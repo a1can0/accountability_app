@@ -1,7 +1,8 @@
 let currentToken = null;
 let appData = { calendars: [] };
 const aesKey = new Uint8Array(32); // Will be derived from token
-
+const baseUrl = "https://accountability-app-backend.onrender.com/";
+const port = 10000;
 // Initialize app
 window.addEventListener('load', async function () {
     const urlParams = new URLSearchParams(window.location.search);
@@ -113,7 +114,7 @@ async function loadAppData() {
 async function saveAppData() {
     try {
         const encrypted = await encryptData(appData);
-        const response = await fetch(`/backup/${currentToken}`, {
+        const response = await fetch(`${baseURL}/backup/${currentToken}:${PORT}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(encrypted)
@@ -356,7 +357,7 @@ async function backupToCloud() {
 
 async function restoreFromCloud() {
     try {
-        const response = await fetch(`/restore/${currentToken}`);
+        const response = await fetch(`${baseURL}/restore/${currentToken}:${PORT}`);
         if (response.ok) {
             const encryptedObj = await response.json();
             appData = await decryptData(encryptedObj);
