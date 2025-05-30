@@ -1,8 +1,6 @@
 let currentToken = null;
 let appData = { calendars: [] };
 const aesKey = new Uint8Array(32); // Will be derived from token
-const RENDER_API_URL = 'https://api.render.com/v1/storage'; // Replace with actual Render storage API endpoint
-const RENDER_API_KEY = 'your-render-api-key'; // Replace with your Render API key
 
 // Initialize app
 window.addEventListener('load', async function () {
@@ -133,7 +131,8 @@ async function createCalendar() {
         title: title,
         clicks: 0,
         createdAt: new Date().toISOString(),
-        lastClick: null
+        lastClick: null,
+        days: {} // Store day states: { "YYYY-MM-DD": "green" | "red" | null }
     };
 
     appData.calendars.push(calendar);
@@ -147,6 +146,18 @@ async function clickCalendar(id) {
     if (calendar) {
         calendar.clicks++;
         calendar.lastClick = new Date().toISOString();
+        const today = new Date().toISOString().split('T')[0];
+        calendar.days[today] = calendar.days[today] === 'green' ? 'red' : calendar.days[today] === 'red' ? null : 'green';
+        await saveAppData();
+        renderCalendars();
+        playBlingSound();
+    }
+}
+
+async function toggleDay(id, date) {
+    const calendar = appData.calendars.find(c => c.id === id);
+    if (calendar) {
+        calendar.days[date] = calendar.days[date] === 'green' ? 'red' : calendar.days[date] === 'red' ? null : 'green';
         await saveAppData();
         renderCalendars();
         playBlingSound();
@@ -197,6 +208,61 @@ function getDaysSince(dateString) {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
 
+function getCurrentStreak(calendar) {
+    const today = new Date();
+    let streak = 0;
+    let currentDate = new Date(today);
+    
+    while (true) {
+        const dateStr = currentDate.toISOString().split('T')[0];
+        if (calendar.days[dateStr] === 'green') {
+            streak++;
+            currentDate.setDate(currentDate.getDate() - 1);
+        } else {
+            break;
+        }
+    }
+    
+    if (calendar.days[today.toISOString().split('T')[0]] !== 'green' && streak > 0) {
+        streak--;
+    }
+    
+    return streak;
+}
+
+function generateCalendarHTML(calendar) {
+    const createdAt = new Date(calendar.createdAt);
+    const today = new Date();
+    const daysSince = getDaysSince(calendar.createdAt);
+    const startDate = new Date(createdAt);
+    startDate.setDate(1); // Start from the first of the month of creation
+    
+    let calendarHTML = '<div class="calendar-grid">';
+    
+    const daysOfWeek = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+    daysOfWeek.forEach(day => {
+        calendarHTML += `<div class="calendar-day day-header">${day}</div>`;
+    });
+    
+    const firstDay = startDate.getDay();
+    for (let i = 0; i < firstDay; i++) {
+        calendarHTML += '<div class="calendar-day day-gray"></div>';
+    }
+    
+    const daysInMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0).getDate();
+    for (let day = 1; day <= daysInMonth; day++) {
+        const currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), day);
+        const dateStr = currentDate.toISOString().split('T')[0];
+        const isFuture = currentDate > today;
+        const state = calendar.days[dateStr] || (isFuture ? 'future' : null);
+        const className = isFuture ? 'day-gray' : state === 'green' ? 'day-green' : state === 'red' ? 'day-red' : 'day-gray';
+        calendarHTML += `<div class="calendar-day ${className}" ${isFuture ? '' : `onclick="toggleDay(${calendar.id}, '${dateStr}')"`}>${day}</div>`;
+    }
+    
+    calendarHTML += '</div>';
+    return calendarHTML;
+}
+
 function renderCalendars() {
     const grid = document.getElementById('calendarsGrid');
     
@@ -209,14 +275,16 @@ function renderCalendars() {
         <div class="calendar-card">
             <div class="calendar-title">${calendar.title}</div>
             <div class="calendar-stats">
-                <span>Total: ${calendar.clicks}</span>
+                <span>Total Clicks: ${calendar.clicks}</span>
                 <span>Days: ${getDaysSince(calendar.createdAt)}</span>
+                <span>Current Streak: ${getCurrentStreak(calendar)}</span>
             </div>
             <div style="margin-bottom: 15px; font-size: 0.9rem; color: #718096; text-align: center;">
                 Last click: ${formatDate(calendar.lastClick)}
             </div>
+            ${generateCalendarHTML(calendar)}
             <button class="click-btn" onclick="clickCalendar(${calendar.id})">
-                ✨ Mark Progress ✨
+                ✨ Mark Today ✨
             </button>
             <button class="delete-btn" onclick="deleteCalendar(${calendar.id})">Delete</button>
             <div style="clear: both;"></div>
@@ -257,12 +325,9 @@ async function importData(event) {
 async function backupToCloud() {
     const encrypted = await encryptData(appData);
     try {
-        const response = await fetch(`${RENDER_API_URL}/files/${currentToken}`, {
+        const response = await fetch(`/backup/${currentToken}`, {
             method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${RENDER_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(encrypted)
         });
         if (response.ok) {
@@ -278,12 +343,7 @@ async function backupToCloud() {
 
 async function restoreFromCloud() {
     try {
-        const response = await fetch(`${RENDER_API_URL}/files/${currentToken}`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${RENDER_API_KEY}`
-            }
-        });
+        const response = await fetch(`/restore/${currentToken}`);
         if (response.ok) {
             const encryptedObj = await response.json();
             appData = await decryptData(encryptedObj);
