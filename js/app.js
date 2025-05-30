@@ -97,22 +97,35 @@ function showMainApp() {
 }
 
 async function loadAppData() {
-    const stored = localStorage.getItem('recoveryTracker_' + currentToken);
-    if (stored) {
-        try {
-            const encryptedObj = JSON.parse(stored);
+    try {
+        const response = await fetch(`/restore/${currentToken}`);
+        if (response.ok) {
+            const encryptedObj = await response.json();
             appData = await decryptData(encryptedObj);
-        } catch (e) {
-            appData = { calendars: [] };
+        } else {
+            appData = { calendars: [] }; // Initialize empty if no data found
         }
-    } else {
-        appData = { calendars: [] };
+    } catch (e) {
+        console.error('Error loading data:', e);
+        appData = { calendars: [] }; // Fallback to empty state
     }
 }
-
 async function saveAppData() {
-    const encrypted = await encryptData(appData);
-    localStorage.setItem('recoveryTracker_' + currentToken, JSON.stringify(encrypted));
+    try {
+        const encrypted = await encryptData(appData);
+        const response = await fetch(`/backup/${currentToken}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(encrypted)
+        });
+        if (!response.ok) {
+            throw new Error('Failed to save data to backend');
+        }
+        console.log('Data saved successfully to backend');
+    } catch (e) {
+        console.error('Error saving data:', e);
+        alert('Failed to save data to cloud. Please try exporting to a file instead.');
+    }
 }
 
 function setTitle(title) {
