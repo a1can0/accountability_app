@@ -99,7 +99,7 @@ function showMainApp() {
 
 async function loadAppData() {
     try {
-        const response = await fetch(`/restore/${currentToken}`);
+        const response = await fetch(`${baseUrl}/restore/${currentToken}:${PORT}`);
         if (response.ok) {
             const encryptedObj = await response.json();
             appData = await decryptData(encryptedObj);
@@ -114,7 +114,7 @@ async function loadAppData() {
 async function saveAppData() {
     try {
         const encrypted = await encryptData(appData);
-        const response = await fetch(`${baseURL}/backup/${currentToken}:${PORT}`, {
+        const response = await fetch(`${baseUrl}/backup/${currentToken}:${PORT}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(encrypted)
@@ -339,7 +339,7 @@ async function importData(event) {
 async function backupToCloud() {
     const encrypted = await encryptData(appData);
     try {
-        const response = await fetch(`/backup/${currentToken}`, {
+        const response = await fetch(`${baseUrl}:${PORT}/backup/${currentToken}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(encrypted)
@@ -357,7 +357,7 @@ async function backupToCloud() {
 
 async function restoreFromCloud() {
     try {
-        const response = await fetch(`${baseURL}/restore/${currentToken}:${PORT}`);
+        const response = await fetch(`${baseURL}:${PORT}/restore/${currentToken}`);
         if (response.ok) {
             const encryptedObj = await response.json();
             appData = await decryptData(encryptedObj);
