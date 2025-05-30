@@ -1,5 +1,7 @@
 const express = require('express');
 const app = express();
+const port = process.env.PORT || 10000 
+
 const RENDER_API_KEY = process.env.RENDER_API_KEY;
 const RENDER_API_URL = 'https://api.render.com/v1'; // Replace with actual Render storage API endpoint
 
@@ -49,4 +51,6 @@ app.get('/restore/:token', async (req, res) => {
     }
 });
 
-module.exports = app;
+app.listen(port, () => {
+  console.log(`app listening on port ${port}`)
+})
